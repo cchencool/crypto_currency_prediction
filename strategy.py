@@ -26,7 +26,7 @@ piror = 0.7 # the assumed chance that price will go up/down next week. get by an
 piror_weight = 0.2 # piror weight for each deal. 
 # fluctuate_volumn_for_each_crypto = [50, 300, 20, 2] # assumeed fluctunate volumn for each period. get by analysis historical data. and should fit for each different currency
 fluctuate_volumn_for_each_crypto = [15, 100, 6, 1.3]
-deal_unit_for_each_crypto = [3, 1, 5,10] # unit amount for each deal period
+deal_unit_for_each_crypto = [3, 1, 5, 10] # unit amount for each deal period
 random.seed(123)
 
 is_reverse = False
@@ -82,9 +82,9 @@ def handle_bar(counter,  # a counter for number of minute bars that have already
     for asset_index in range(4):
 
         # if counter > 60 * 24 * 5 and total_balance > 105000:
-        if total_balance > 105000:
-            position_new[asset_index] = 0
-            continue
+        # if total_balance > 105000:
+        #     position_new[asset_index] = 0
+        #     continue
 
         average_price = average_price_for_all_assets[asset_index]
         fluctuate_volumn = fluctuate_volumn_for_each_crypto[asset_index]
