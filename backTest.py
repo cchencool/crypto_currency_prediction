@@ -6,18 +6,15 @@ import os
 import sys
 import matplotlib
 
-from strategy import handle_bar
 # Change the working directory to your strategy folder.
 # You should change this directory below on your own computer accordingly.
-working_folder = "."
-#/Users/Chen/Library/Mobile Documents/com~apple~CloudDocs/HKUST/MSBD5013_SP/Python/demo2'#D:\Dropbox\MAFS-2018\Python\demo3'
+working_folder = '.'
+
 
 # Write down your file paths for format 1 and format 2
 # Note: You can test your strategy on different periods. Try to make your strategy profitable stably.
-format1_dir = './data/data_format1_20180916_20180923.h5'# './data/data_format1_201808.h5'#C:\\Users\\cchen\\iCloudDrive\\HKUST\\MSBD5013_SP\\data\\data_format1_20180901_20180909.h5'
-# '/Users/Chen/Library/Mobile Documents/com~apple~CloudDocs/HKUST/MSBD5013_SP/Python/data_format2_201808.h5'#D:\Dropbox\MAFS-2018/data/data_format1_201808.h5'
+format1_dir = './data/data_format1_20180916_20180923.h5'# './data/data_format1_201808.h5'
 format2_dir = './data/data_format2_20180916_20180923.h5'#'./data/data_format2_201808.h5'
-#'/Users/Chen/Library/Mobile Documents/com~apple~CloudDocs/HKUST/MSBD5013_SP/Python/data_format2_201808.h5'#D:\Dropbox\MAFS-2018/data/data_format1_201808.h5'
 
 # The following code is for backtesting. DO NOT change it unless you want further exploration beyond the course project.
 # import your handle_bar function
@@ -27,6 +24,7 @@ sys.path.append(working_folder)
 os.chdir(working_folder)
 os.system('python strategy.py')
 
+from strategy import handle_bar
 # from strategy import handle_bar
 
 
@@ -114,7 +112,7 @@ class backTest:
             position_new = position_old + position_change
             average_price = np.mean(data_cur_min[:, :4], axis=1)
             transaction_cost = np.sum(np.abs(position_change)*average_price*self.commissionRatio)
-            revenue = np.sum(position_old*(average_price - average_price_old)) - transaction_cost # the project use average price as deal price.
+            revenue = np.sum(position_old*(average_price - average_price_old)) - transaction_cost
             crypto_balance = np.sum(np.abs(position_new*average_price))
             total_balance = total_balance + revenue
             cash_balance = total_balance - crypto_balance
@@ -130,8 +128,10 @@ class backTest:
                 stop_signal = True
                 print("Current cash balance is lower than", self.cash_balance_lower_limit)
                 print("Your strategy is forced to stop")
+                print("System will soon close all your positions (long and short) on crypto currencies")
 
             if stop_signal:
+                position_new = np.repeat(0., 4)
                 if '09:30:00' in keys[i]:
                     print(keys[i][:10])
                 continue
@@ -163,6 +163,7 @@ class backTest:
             f.writelines("time_in,time_out,deal_type,prob,asset_index,in_price,goal_price,has_brought,has_selled,is_dirty_deal,has_dropped,drop_price,is_hold_till_end\n")
             for record in self.memory.deal_save:
                 f.writelines(str(record) + '\n')
+
 
 
         return detailsDF
