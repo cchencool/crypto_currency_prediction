@@ -49,6 +49,8 @@ Support functions for stategy.
 ## Helpful Links.
 * about time series analysis : https://www.cnblogs.com/foley/p/5582358.html
 
+* some source code about strategy and model: https://www.joinquant.com
+
 * others/Analysis of Financial Time Series.pdf
 
 * others/Time series prediction using dynamic Bayesian network.pdf
