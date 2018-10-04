@@ -73,7 +73,7 @@ Support functions for stategy.
 
     2.1 基于Bayesian Network的初步建模。
    
-    > 输入(t-1)时刻四个货币的, 输出为(t))时刻四种货币价格或者走势的预测。
+    > 输入(t-1)时刻四个货币的价格, 输出为(t))时刻四种货币价格或者走势的预测。
 
 
 3. Statistics & Analysis
