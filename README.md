@@ -1,7 +1,6 @@
 # msbd5013_project
 msbd5013 group project repository
 
---------------------------
 ## Folder Usage
 
 * data
@@ -24,7 +23,6 @@ All submitted history project result archieve.
 
 Other support and helpful files or pages should be placed here.
 
----------------------------
 ## File Usage
 
 * backTest.py
