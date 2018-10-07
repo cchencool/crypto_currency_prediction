@@ -1,5 +1,6 @@
 #
 .vscode
+.idea
 trasnaction_detail.csv
 backtest_details.csv
 
