@@ -166,7 +166,7 @@ def handle_bar(counter,  # a counter for number of minute bars that have already
                 # TODO should also consider transaction fee.
                 goal_price = deal_price + (1 if deal_type == 'long' else -1) * (piror_weight * piror + confidence) * fluctuate_volumn
                 # deal = Deal_record(base_time='2018-08-01 00:00:00')
-                deal = Deal_record(base_time='2018-09-23 00:00:00')
+                deal = Deal_record(base_time='2018-09-30 00:00:00')
                 deal.prob_pred = prob_pred
                 deal.asset_index = asset_index
                 deal.goal_price = goal_price
