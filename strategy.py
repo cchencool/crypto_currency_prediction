@@ -19,7 +19,7 @@ period = 60 * 4  # Number of minutes to generate next new bar
 decision_count=0
 failed_count = 0
 
-cash_balance_lower_limit = 0 #20000 # cash balance problem!! if my cash balance rise back to 10,000 after sell the crypto, I still cannot make any deal.
+cash_balance_lower_limit = 20000 #20000 # cash balance problem!! if my cash balance rise back to 10,000 after sell the crypto, I still cannot make any deal.
 crypto_balance_limit = 80000
 
 piror = 0.7 # the assumed chance that price will go up/down next week. get by analysis historcal data
@@ -166,7 +166,7 @@ def handle_bar(counter,  # a counter for number of minute bars that have already
                 # TODO should also consider transaction fee.
                 goal_price = deal_price + (1 if deal_type == 'long' else -1) * (piror_weight * piror + confidence) * fluctuate_volumn
                 # deal = Deal_record(base_time='2018-08-01 00:00:00')
-                deal = Deal_record(base_time='2018-09-30 00:00:00')
+                deal = Deal_record(base_time='2018-10-07 00:00:00')
                 deal.prob_pred = prob_pred
                 deal.asset_index = asset_index
                 deal.goal_price = goal_price
