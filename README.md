@@ -100,3 +100,38 @@ Support functions for stategy.
 5. Deadline
 
     2018/10/18 (Week.3)
+
+
+## 2018/10/11 会议结论
+
+1. Lask week rank: No.1
+
+2. Model
+
+    2.1 Linear Regression.
+    
+    > model/model_linear_regression.ipynb
+    
+    > Y = (W.T)*X, where X is the data at time (T-n) of all 4 assests, Y is the predict assest price at time T.
+
+    2.2 Logistic Regression.
+    
+    > modify based on linear regression model    
+
+3. Strategy
+
+    based on model, if the predict is trustable. trade.
+
+4. Arragement
+
+    1. Linear Regression parameter extend to (T-1), (T-2) ... (T-n) - ZHANG Xichen
+
+    2. Logistic Regression Modification. - GAO Han
+
+    3. Linear Regression parameter extend to volume. - LING Liyang
+
+    4. Textbook method attempt. - WANG Shen
+
+5. DDL
+
+    2018/11/01 (Week.5)
