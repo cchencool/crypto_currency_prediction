@@ -55,6 +55,7 @@ Support functions for stategy.
 
 * others/Time series prediction using dynamic Bayesian network.pdf
 
+* [LSTM-Neural-Network-for-Time-Series-Prediction](https://github.com/jaungiers/LSTM-Neural-Network-for-Time-Series-Prediction)
 
 # Meeting Summary
 
