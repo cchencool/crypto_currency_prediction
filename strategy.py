@@ -7,13 +7,12 @@
 # 2. When load files, ALWAYS use relative path such as "data/facility.pickle"
 # DO NOT use absolute path such as "C:/Users/Peter/Documents/project/data/facility.pickle"
 from sklearn.externals import joblib
-from auxiliary import generate_bar
-from auxiliary import Deal_record
-from auxiliary import check_balance_warning
+from auxiliary import Deal_record, check_balance_warning, get_current_avg_price, get_history_avg_price, generate_bar
 import pandas as pd
 import numpy as np
 import random
 
+use_model = False
 model = joblib.load('./model/model.pkl')
 period = 60 * 4  # Number of minutes to generate next new bar
 decision_count=0
@@ -69,6 +68,7 @@ def handle_bar(counter,  # a counter for number of minute bars that have already
     global failed_count
     global decision_count
     global is_reverse
+    global use_model
 
     # Get position of last minute
     position_new = position_current
@@ -133,13 +133,26 @@ def handle_bar(counter,  # a counter for number of minute bars that have already
             if check_balance_warning(cash_balance, crypto_balance, total_balance, cash_balance_lower_limit):
                 continue
             memory.data_save[asset_index].loc[period - 1] = data[asset_index,]
-            bar = generate_bar(memory.data_save[asset_index]) # pandas dataframe
-            bar_X = bar[['open', 'close']]
+
+
+            # wether use a model to predict.
+            if use_model:
+                # use the model to predict
+                bar = generate_bar(memory.data_save[asset_index]) # pandas dataframe
+                bar_X = bar[['open', 'close']]
         
-            prob_pred = model.predict_proba(bar_X)[:,1][0]
-            # prob_pred = -1 # random.random()
-            is_up = prob_pred > 0.51
-            is_down = prob_pred < 0.49
+                prob_pred = model.predict_proba(bar_X)[:,1][0]
+                # prob_pred = -1 # random.random()
+                is_up = prob_pred > 0.51
+                is_down = prob_pred < 0.49
+            else:
+                # don't use model. judge trend based on the average price of last period & current price.
+                hist_avg_price = get_history_avg_price(memory.data_save[asset_index].drop('volume', axis=1), period)
+                curr_avg_price = get_current_avg_price(data[asset_index,][:4])
+
+                prob_pred = 1
+                is_up = hist_avg_price < curr_avg_price
+                is_down = hist_avg_price > curr_avg_price
 
             if decision_count > 150 and (failed_count*1.0) / decision_count > 0.7 and not is_reverse:
                 is_reverse = True

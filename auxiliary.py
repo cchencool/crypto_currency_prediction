@@ -1,8 +1,7 @@
 from datetime import datetime as dt
 from datetime import timedelta
 import pandas as pd
-
-
+import numpy as np
 
 class Deal_record(object):
 
@@ -46,6 +45,16 @@ def check_balance_warning(current_balance:int, crypto_balance:int, total_balance
         #    return True
         #else:
         #    return False
+
+
+def get_current_avg_price(data):
+    average_price = np.mean(data)
+    return average_price
+
+
+def get_history_avg_price(data, period):
+    average_price = np.mean(data[-1*period:], axis=1)
+    return average_price.mean()
 
 
 def generate_bar(data):
