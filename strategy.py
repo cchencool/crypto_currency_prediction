@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 import random
 
-use_model = False
+use_model = True#False
 model = joblib.load('./model/model.pkl')
 period = 60 * 4  # Number of minutes to generate next new bar
 decision_count=0
