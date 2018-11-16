@@ -12,29 +12,30 @@ import pandas as pd
 import numpy as np
 import random
 
-# Data Settings
+# System Settings
+ASSETS = ['BCH-USD', 'BTC-USD', 'ETH-USD', 'LTC-USD']
+ORIGIN_FEATURES = ['close', 'high', 'low', 'open', 'volume']
 
-model_list = []
-use_model = [True for i in range(len(model_list))]     # use corresponding model or not
-asset_list = ['BCH-USD', 'BTC-USD', 'ETH-USD', 'LTC-USD']
-feature_list = ['close', 'high', 'low', 'open', 'volume']
+LONG, SHORT, HOLD = [1, 0, 2]
 
 # User Settings
+EXPECT_RETURN_RATE = 0.05
+DECISION_PERIOD = 60      # Number of minutes to generate next new bar
 
-expect_return_rate = 0.05
-decision_period = 60 * 4  # Number of minutes to generate next new bar
+CASH_BALANCE_LOWER_LIMIT = 20000    # cash balance problem!! if my cash balance rise back to 10,000 after sell the crypto, I still cannot make any deal.
+CRYPTO_BALACE_LIMIT = 80000
 
-cash_balance_lower_limit = 20000    # cash balance problem!! if my cash balance rise back to 10,000 after sell the crypto, I still cannot make any deal.
-crypto_balance_limit = 80000
+PRIOR = 0.7     # the assumed chance that price will go up/down next week. get by analysis historcal data
+PRIOR_WEIGHT = 0.2      # piror weight for each deal. 
 
-piror = 0.7     # the assumed chance that price will go up/down next week. get by analysis historcal data
-piror_weight = 0.2      # piror weight for each deal. 
-# assumeed fluctunate volumn for each decision_period. get by analysis historical data. and should fit for each different currency
-fluctuate_volumn_for_each_crypto = [15, 100, 6, 1.3]
-deal_unit_for_each_crypto = [3, 1, 5, 10]       # unit amount for each deal decision_period
+# assumeed fluctunate volumn for each DECISION_PERIOD. get by analysis historical data. and should fit for each different currency
+FLUCTUATE_VOLUMNS = [15, 100, 6, 1.3]
+DEAL_UNITS = [6, 1, 8, 12]      # unit amount for each deal DECISION_PERIOD origin: [3, 1, 5, 10]
 
-# Load Models
-# model = joblib.load('./model/model.pkl')
+# Models Settings
+
+# loal model here, and append models into model List
+model_list = []
 
 # decision_count=0
 # failed_count = 0
@@ -48,10 +49,6 @@ deal_unit_for_each_crypto = [3, 1, 5, 10]       # unit amount for each deal deci
 # 2.1 position is a np.array (length 4) indicating your desired position of four crypto currencies next minute
 # 2.2 memory is a class containing the information you want to save currently for future use
 
-# [[close, high, low, open], --'BCH-USD'
-#  [close, high, low, open], --'BTC-USD'
-#  [close, high, low, open], --'ETH-USD'
-#  [close, high, low, open]] --'LTC-USD'
 def handle_bar(counter,  # a counter for number of minute bars that have already been tested
                time,  # current time in string format such as "2018-07-30 00:30:00"
                data,  # data for current minute bar (in format 2)
@@ -72,172 +69,127 @@ def handle_bar(counter,  # a counter for number of minute bars that have already
     # Pattern for long signal:
     # for rising/falling prediction, long/short one unit of & according to the confidence to calculate the goal price, once it reachs sell the crypto.
 
-    global deal_unit_for_each_crypto   
-    global piror
-    global piror_weight
-    global decision_period
-    global failed_count
-    global decision_count
-    global is_reverse
-    global use_model
+    # TODO: embeded utility functions
+    def get_income_rate():
+        pass
 
-    # Get position of last minute
-    position_new = position_current
-
-    average_price_for_all_assets = np.mean(data[:, :4], axis=1)
+    def get_confidence():
+        pass
 
     # memory init
     if counter == 0:
-        memory.data_save = dict.fromkeys()
-        memory.deal_save = list()
-    
-        # memory.open_price = average_price
-        memory.period_highest = dict()
-        memory.period_lowest = dict()
+        # data_save only saves data in the latest decision period (1 hour)
+        memory.data_save = dict.fromkeys(ASSETS, pd.DataFrame(columns = ORIGIN_FEATURES))
+        # memory.old_data = dict.fromkeys(ASSETS)     # bakck up of data_save after one period
+        memory.deal_save = dict.fromkeys(ASSETS, [])
+        memory.turning_price = dict.fromkeys(ASSETS, 0)     # deal pri
 
-    memory.data_save[asset_index] = pd.DataFrame(columns = feature_list)
+        memory.is_satisfied = False     # If True, stop to make deal
+        memory.models_cof = [1 for i in range(len(model_list))]     # confidence for each model
+        memory.use_model = [True for i in range(len(model_list))]   # use model or not (this is for ensembled model)
+
+        memory.success_count = dict.fromkeys(ASSETS, 0)
+    
+    # data preprocess & record update
+    position_new = position_current
+    average_prices = np.mean(data[:, :4], axis=1)       # average price for all assets
+
+    if total_balance >= init_cash*(1+EXPECT_RETURN_RATE):
+        memory.is_satisfied = True
+    else:
+        memory.is_satisfied = False
 
     # for each asset do the predict and make deal.
     for asset_index in range(4):
 
-        # if counter > 60 * 24 * 5 and total_balance > 105000:
-        # if total_balance > 105000:
-        #     position_new[asset_index] = 0
-        #     continue
+        # when achieving target income, stop making deals
+        # TODO: OR when is_satisfied is true & next prediction is opposite result, clean position for more income
+        if memory.is_satisfied:
+            position_new[asset_index] = 0
+            continue
 
-        average_price = average_price_for_all_assets[asset_index]
-        fluctuate_volumn = fluctuate_volumn_for_each_crypto[asset_index]
-        deal_unit = deal_unit_for_each_crypto[asset_index]
+        asset_name = ASSETS[asset_index]
+        fluctuate_volumn = FLUCTUATE_VOLUMNS[asset_index]
+        deal_unit = DEAL_UNITS[asset_index]
+        average_price = average_prices[asset_index]
+
+        memory.data_save[asset_name].loc[counter % DECISION_PERIOD] = data[asset_index,]
         
-        # Generate OHLC data for every 30 minutes
-
-
-        # check if any deal can sell in usual time.
-        if len(memory.deal_save) > 0: 
-            for deal in memory.deal_save:
-                if deal.asset_index != asset_index: continue
-                if deal.is_dirty_deal and not deal.has_dropped:
-                    deal.drop_price = average_price
-                    deal.has_dropped = True
-                if deal.has_selled or deal.has_dropped: continue
-                if not deal.has_brought:
-                    # update record
-                    deal.deal_time = counter
-                    deal.price = average_price 
-                    deal.goal_price += deal.price
-                    deal.has_brought = True
-                    deal.has_selled = False
-                else:
-                    # process deal, see if could sell.
-                    if deal.deal_type == 'long' and average_price >= deal.goal_price:
-                        # sell long
-                        if not check_balance_warning(cash_balance, crypto_balance, total_balance, cash_balance_lower_limit, deal):
-                            position_new[asset_index] -= 1 * deal_unit
-                            deal.sell_time = counter
-                            deal.has_selled = True
-                    if deal.deal_type == 'short' and average_price <= deal.goal_price:
-                        # sell long
-                        if not check_balance_warning(cash_balance, crypto_balance, total_balance, cash_balance_lower_limit, deal):
-                            position_new[asset_index] += 1 * deal_unit
-                            deal.sell_time = counter
-                            deal.has_selled = True
-        
-        # predict in decision decision_period
-        if ((counter + 1) % decision_period == 0):
-            if check_balance_warning(cash_balance, crypto_balance, total_balance, cash_balance_lower_limit):
+        # predict in DECISION_PERIOD
+        if ((counter+1) % DECISION_PERIOD == 0):
+            # Risk Ananlysis
+            if check_balance_warning(cash_balance, crypto_balance, total_balance, CASH_BALANCE_LOWER_LIMIT):
                 continue
-            memory.data_save[asset_index].loc[decision_period - 1] = data[asset_index,]
 
-
-            # wether use a model to predict.
-            if use_model:
-                # use the model to predict
-                bar = generate_bar(memory.data_save[asset_index]) # pandas dataframe
-                bar_X = bar[['open', 'close']]
-        
-                prob_pred = model.predict_proba(bar_X)[:,1][0]
-                # prob_pred = -1 # random.random()
-                is_up = prob_pred > 0.51
-                is_down = prob_pred < 0.49
+            # Model Evaluation
+            last_deal = memory.deal_save[asset_name][-1]
+            # if decision_count > 150 and (failed_count*1.0) / decision_count > 0.7 and not is_reverse:
+            if int(memory.data_save[asset_name][0]['open']/memory.data_save[asset_name][-1]['close']) == last_deal.prediction:
+                memory.success_count[asset_name] += 1
             else:
-                # don't use model. judge trend based on the average price of last decision_period & current price.
-                hist_avg_price = get_history_avg_price(memory.data_save[asset_index].drop('volume', axis=1), decision_period)
+                memory.models_cof[asset_name] -= 0.01   # TODO better strategy needed
+            if ((counter+1) % (DECISION_PERIOD*24*2) == 0):
+                decision_count = int((counter+1) / DECISION_PERIOD)
+                memory.use_model[asset_name] = False if memory.success_count[asset_name] / decision_count <= 0.5 else True
+
+            # Do prediction: use  model to predict or not
+            if memory.use_model[asset_index]:
+                '''
+                What should do here:
+                    load data for specified asset from memory.data_save[asset_name]
+                    transform data format according to diff models
+                    call model predict
+                    ensemble result
+                    give final prediction: 1: increasing, 0: decreasing, 2: hold the line (it's no matter without 2)
+                '''
+                prediction = 1      # 1 or 0 or other value
+            else:   # NOT sure is it a better way to replacce model prediction
+                # don't use model. judge trend based on the average price of last DECISION_PERIOD & current price.
+                hist_avg_price = get_history_avg_price(memory.data_save[asset_name].drop('volume', axis=1), DECISION_PERIOD)
                 curr_avg_price = get_current_avg_price(data[asset_index,][:4])
+                # prob_pred = 1
+                prediction = 1 if hist_avg_price < curr_avg_price else 0
 
-                prob_pred = 1
-                is_up = hist_avg_price < curr_avg_price
-                is_down = hist_avg_price > curr_avg_price
-
-            if decision_count > 150 and (failed_count*1.0) / decision_count > 0.7 and not is_reverse:
-                is_reverse = True
-
-            if is_reverse:
-                is_up = not is_up
-                is_down = not is_down
-
-            make_deal = is_up or is_down
-            confidence = prob_pred
-            deal_type = 'none'
-
-            if is_up:
+            # TODO: consider transaction fee and calculate income rate to refine deal unit
+            if prediction == LONG:
                 deal_type = 'long'
-                position_new[asset_index] += 1 * deal_unit
-            elif is_down:
+                if position_new[asset_index] > 0:
+                    position_new[asset_index] += int(deal_unit * memory.models_cof[asset_name])
+                elif position_new[asset_index] == 0:
+                    position_new[asset_index] += int(deal_unit * memory.models_cof[asset_name])
+                    memory.turning_price[asset_name] = average_price
+                else:
+                    position_new[asset_index] = 0
+            elif prediction == SHORT:
                 deal_type = 'short'
-                position_new[asset_index] -= 1 * deal_unit
+                if position_new[asset_index] <= 0:
+                    position_new[asset_index] -= int(deal_unit * memory.models_cof[asset_name])
+                elif position_new[asset_index] == 0:
+                    position_new[asset_index] -= int(deal_unit * memory.models_cof[asset_name])
+                    memory.turning_price[asset_name] = average_price
+                else:
+                    position_new[asset_index] = 0
+            else: # HOLD
+                deal_type = 'none'
 
-            if make_deal:
-                decision_count += 1
-                # store deal
-                deal_price = 0 # unknown yet, for now just a assumed price in this minute
-                # TODO should also consider transaction fee.
-                goal_price = deal_price + (1 if deal_type == 'long' else -1) * (piror_weight * piror + confidence) * fluctuate_volumn
-                deal = Deal_record(base_time='2018-10-07 00:00:00')
-                deal.prob_pred = prob_pred
-                deal.asset_index = asset_index
-                deal.goal_price = goal_price
-                deal.deal_type = deal_type
-                deal.has_selled = False
-                deal.has_brought = False
-                memory.deal_save.append(deal)
+            # record deal
+            deal_price = memory.data_save[asset_name][-1]['close'] # unknown yet, for now just a assumed close price in this minute
+            deal = Deal_record(amount=int(deal_unit * memory.models_cof[asset_name]))
+            deal.prob_pred = memory.models_cof[asset_name]
+            deal.asset_index = asset_index
+            deal.goal_price = deal_price + (1 if deal_type == 'long' else -1) * (PRIOR_WEIGHT * PRIOR + confidence) * fluctuate_volumn
+            deal.deal_type = deal_type
+            deal.prediction = prediction
+            deal.has_selled = False
+            deal.has_brought = False
+            memory.deal_save.append(deal)
         
-            if len(memory.deal_save) > 0: 
-                for deal in memory.deal_save:
-                    if not deal.has_brought: continue
-                    if deal.has_selled: continue
-                    if deal.is_hold_till_end: continue
-                    if deal.is_dirty_deal: continue
-                    if (deal.deal_time) % decision_period == 0:
-                        failed_count += 1
-                        # deal.is_dirty_deal = True
-                        a_index = deal.asset_index
-                        # open_price_of_asset = memory.open_price[a_index]
-                        if piror > 0: # piror is the price will go up in final.
-                            # TODO deal with outliers.
-                            # if (deal.price < open_price_of_asset or (deal.price + pow((1 + piror), 2) * fluctuate_volumn) > open_price_of_index):
-                            if deal.deal_type == 'long':
-                                # hold till end and keep finding chance to sell
-                                deal.is_hold_till_end = True
-                            elif deal.deal_type == 'short':
-                                # sell directly to stop loss
-                                position_new[a_index] += 1 * deal_unit
-                                deal.is_dirty_deal = True
-                                pass
-                    
-                        if piror < 0: # piror is the price will go down in final.
-                            # TODO deal with outliers.
-                            # if (deal.price > open_price_of_asset or (deal.price + pow((1 + piror), 2) * fluctuate_volumn > open_price_of_index):
-                            if deal.deal_type == 'long':
-                                # sell directly to stop loss
-                                position_new[a_index] -= 1 * deal_unit
-                                deal.is_dirty_deal = True
-                                pass
-                            elif deal.deal_type == 'short':
-                                # hold till end and keep finding chance to sell
-                                deal.is_hold_till_end = True
-        
-        else:
-            memory.data_save[asset_index].loc[(counter + 1) % decision_period - 1] = data[asset_index,]#####
-
+        elif(counter != 0):   # not decision period & not the first minute
+            # if current currency price can give double expect return, clean position
+            if (position_new[asset_index] > 0) and (average_price >= memory.turning_price[asset_name]*(1+2*EXPECT_RETURN_RATE)):
+                position_new[asset_index] = 0
+            if (position_new[asset_index] < 0) and (average_price <= memory.turning_price[asset_name]*(1-2*EXPECT_RETURN_RATE)):
+                position_new[asset_index] = 0
+            
     # End of strategy
     return position_new, memory
