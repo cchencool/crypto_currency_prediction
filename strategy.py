@@ -12,23 +12,34 @@ import pandas as pd
 import numpy as np
 import random
 
-use_model = True#False
-model = joblib.load('./model/model.pkl')
-period = 60 * 4  # Number of minutes to generate next new bar
-decision_count=0
-failed_count = 0
+# Data Settings
 
-cash_balance_lower_limit = 20000 #20000 # cash balance problem!! if my cash balance rise back to 10,000 after sell the crypto, I still cannot make any deal.
+model_list = []
+use_model = [True for i in range(len(model_list))]     # use corresponding model or not
+asset_list = ['BCH-USD', 'BTC-USD', 'ETH-USD', 'LTC-USD']
+feature_list = ['close', 'high', 'low', 'open', 'volume']
+
+# User Settings
+
+expect_return_rate = 0.05
+decision_period = 60 * 4  # Number of minutes to generate next new bar
+
+cash_balance_lower_limit = 20000    # cash balance problem!! if my cash balance rise back to 10,000 after sell the crypto, I still cannot make any deal.
 crypto_balance_limit = 80000
 
-piror = 0.7 # the assumed chance that price will go up/down next week. get by analysis historcal data
-piror_weight = 0.2 # piror weight for each deal. 
-# fluctuate_volumn_for_each_crypto = [50, 300, 20, 2] # assumeed fluctunate volumn for each period. get by analysis historical data. and should fit for each different currency
+piror = 0.7     # the assumed chance that price will go up/down next week. get by analysis historcal data
+piror_weight = 0.2      # piror weight for each deal. 
+# assumeed fluctunate volumn for each decision_period. get by analysis historical data. and should fit for each different currency
 fluctuate_volumn_for_each_crypto = [15, 100, 6, 1.3]
-deal_unit_for_each_crypto = [3, 1, 5, 10] # unit amount for each deal period
-random.seed(123)
+deal_unit_for_each_crypto = [3, 1, 5, 10]       # unit amount for each deal decision_period
 
-is_reverse = False
+# Load Models
+# model = joblib.load('./model/model.pkl')
+
+# decision_count=0
+# failed_count = 0
+# random.seed(123)
+# is_reverse = False
 
 # Here is your main strategy function
 # Note:
@@ -61,10 +72,10 @@ def handle_bar(counter,  # a counter for number of minute bars that have already
     # Pattern for long signal:
     # for rising/falling prediction, long/short one unit of & according to the confidence to calculate the goal price, once it reachs sell the crypto.
 
-    global deal_unit   
+    global deal_unit_for_each_crypto   
     global piror
     global piror_weight
-    global period
+    global decision_period
     global failed_count
     global decision_count
     global is_reverse
@@ -74,9 +85,17 @@ def handle_bar(counter,  # a counter for number of minute bars that have already
     position_new = position_current
 
     average_price_for_all_assets = np.mean(data[:, :4], axis=1)
+
+    # memory init
     if counter == 0:
-        memory.data_save = dict()
+        memory.data_save = dict.fromkeys()
         memory.deal_save = list()
+    
+        # memory.open_price = average_price
+        memory.period_highest = dict()
+        memory.period_lowest = dict()
+
+    memory.data_save[asset_index] = pd.DataFrame(columns = feature_list)
 
     # for each asset do the predict and make deal.
     for asset_index in range(4):
@@ -89,14 +108,9 @@ def handle_bar(counter,  # a counter for number of minute bars that have already
         average_price = average_price_for_all_assets[asset_index]
         fluctuate_volumn = fluctuate_volumn_for_each_crypto[asset_index]
         deal_unit = deal_unit_for_each_crypto[asset_index]
+        
         # Generate OHLC data for every 30 minutes
-        if (counter == 0):
-            # memory.data_save = np.zeros((bar_length, 5))#, dtype=np.float64)
-            memory.data_save[asset_index] = pd.DataFrame(columns = ['close', 'high', 'low', 'open', 'volume'])
-            # to support define outlier deals.
-            memory.open_price = average_price
-            memory.period_highest = dict()
-            memory.period_lowest = dict()
+
 
         # check if any deal can sell in usual time.
         if len(memory.deal_save) > 0: 
@@ -128,11 +142,11 @@ def handle_bar(counter,  # a counter for number of minute bars that have already
                             deal.sell_time = counter
                             deal.has_selled = True
         
-        # predict in period
-        if ((counter + 1) % period == 0):
+        # predict in decision decision_period
+        if ((counter + 1) % decision_period == 0):
             if check_balance_warning(cash_balance, crypto_balance, total_balance, cash_balance_lower_limit):
                 continue
-            memory.data_save[asset_index].loc[period - 1] = data[asset_index,]
+            memory.data_save[asset_index].loc[decision_period - 1] = data[asset_index,]
 
 
             # wether use a model to predict.
@@ -146,8 +160,8 @@ def handle_bar(counter,  # a counter for number of minute bars that have already
                 is_up = prob_pred > 0.51
                 is_down = prob_pred < 0.49
             else:
-                # don't use model. judge trend based on the average price of last period & current price.
-                hist_avg_price = get_history_avg_price(memory.data_save[asset_index].drop('volume', axis=1), period)
+                # don't use model. judge trend based on the average price of last decision_period & current price.
+                hist_avg_price = get_history_avg_price(memory.data_save[asset_index].drop('volume', axis=1), decision_period)
                 curr_avg_price = get_current_avg_price(data[asset_index,][:4])
 
                 prob_pred = 1
@@ -178,7 +192,6 @@ def handle_bar(counter,  # a counter for number of minute bars that have already
                 deal_price = 0 # unknown yet, for now just a assumed price in this minute
                 # TODO should also consider transaction fee.
                 goal_price = deal_price + (1 if deal_type == 'long' else -1) * (piror_weight * piror + confidence) * fluctuate_volumn
-                # deal = Deal_record(base_time='2018-08-01 00:00:00')
                 deal = Deal_record(base_time='2018-10-07 00:00:00')
                 deal.prob_pred = prob_pred
                 deal.asset_index = asset_index
@@ -194,7 +207,7 @@ def handle_bar(counter,  # a counter for number of minute bars that have already
                     if deal.has_selled: continue
                     if deal.is_hold_till_end: continue
                     if deal.is_dirty_deal: continue
-                    if (deal.deal_time) % period == 0:
+                    if (deal.deal_time) % decision_period == 0:
                         failed_count += 1
                         # deal.is_dirty_deal = True
                         a_index = deal.asset_index
@@ -224,7 +237,7 @@ def handle_bar(counter,  # a counter for number of minute bars that have already
                                 deal.is_hold_till_end = True
         
         else:
-            memory.data_save[asset_index].loc[(counter + 1) % period - 1] = data[asset_index,]#####
+            memory.data_save[asset_index].loc[(counter + 1) % decision_period - 1] = data[asset_index,]#####
 
     # End of strategy
     return position_new, memory
